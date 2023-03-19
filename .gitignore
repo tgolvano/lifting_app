@@ -1,0 +1,8 @@
+*.json
+!spec/*.json
+
+*.mp4
+!spec/*.mp4	
+
+*.mat
+!spec/*.mat
