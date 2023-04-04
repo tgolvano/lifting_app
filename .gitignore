@@ -6,3 +6,6 @@
 
 *.mat
 !spec/*.mat
+
+*.png
+!spec/*.png

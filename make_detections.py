@@ -61,48 +61,36 @@ def extract_angles_from_landmarks(results):
     return angle_types
 
 
-options = ['WebCam', 'mp4 video']
-
-user_input = ''
-input_message = "Pick an option:\n"
-
-for index, item in enumerate(options):
-    input_message += f'{index+1}) {item}\n'
-
-while user_input not in map(str, range(1, len(options) + 1)):
-    user_input = input(input_message)
-
-print('You picked: ' + options[int(user_input) - 1])
-
-# CAM
-if int(user_input) == 1:
-    cap = cv2.VideoCapture(0)
 
 # VIDEO MP4 format
-elif int(user_input) == 2:
-    # Set the path to your mp4 video
-    with open('config.json') as f:
-        config = json.load(f)
-    video_path = os.path.join(config['data_path'], "bad_snatch_1.mp4")
-    cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    # Check if the video was opened successfully
-    if not cap.isOpened():
-        print("Error opening video file")
-else:
-    print("How did you even got here?\n")
+
+# Set the path to your mp4 video
+with open('config.json') as f:
+    config = json.load(f)
+video_path = os.path.join(config['data_path'], "003.mp4")
+cap = cv2.VideoCapture(video_path)
+fps = cap.get(cv2.CAP_PROP_FPS)
+# Check if the video was opened successfully
+if not cap.isOpened():
+    print("Error opening video file")
 
 
 
-# Initialization of a dictionary of dictionaries with the values of the angles over the video
-values_by_key = {}
-frame_counter = 0
+
+# Initialization of a dictionary to contain the values of the angles over the video
+angles_over_time = {}
 
 # Setup mediapipe instance
 with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7, smooth_landmarks=True) as pose:
     while cap.isOpened():
         ret, frame = cap.read()
-       
+        
+        if not ret:
+            break
+        if frame is None:
+            continue
+
+
         # channels order change
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image.flags.writeable = False
@@ -119,11 +107,12 @@ with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7, smo
             angle_types = extract_angles_from_landmarks(results)
             
             for key, value in angle_types.items():
-                if key not in values_by_key:
-                    values_by_key[key] = {}
-                values_by_key[key][frame_counter] = value
+                if key not in angles_over_time:
+                    angles_over_time[key] = np.array([value])
+                else:
+                    angles_over_time[key] = np.append(angles_over_time[key], value)
 
-            frame_counter += 1  
+            
     # plot values for each key in order of appearance
 
 
@@ -147,9 +136,12 @@ with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7, smo
     cv2.destroyAllWindows()
 
     # Plot values for each key in order of appearance
-    for key in values_by_key:
-        values = [values_by_key[key][i] for i in range(frame_counter)]
-        plt.scatter(frame_counter, values)
-    plt.show()
+    for key in angles_over_time:
+        plt.scatter(range(len(angles_over_time[key])), angles_over_time[key])
+        plt.xlabel('Time frame')
+        plt.ylabel(key)
+        plt.title('Webster Snatch')
+        plt.grid()
+        plt.savefig(f"{key}_scatter.png")
 
 
