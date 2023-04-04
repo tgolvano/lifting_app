@@ -4,34 +4,62 @@
 
 
 
-import torch
 import json
 import cv2
 import mediapipe as mp
 import numpy as np
 from numpy import linalg as LA
 import os
+import matplotlib.pyplot as plt
 
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
-def calculate_angle(a, b, c):
+def calc_angle(a, b, c):
     
     # a, b and c in 3D cartesian coordinates
     a = np.array(a)
-    b = np.array(b)
+    b = np.array(b) # vertex
     c = np.array(c)
 
-    # More accurate for angles closer to 90 degrees
-    radians = np.arccos(np.dot(np.subtract(a, b), np.subtract(c, b)) / (LA.norm(np.subtract(a, b)) * LA.norm(np.subtract(c, b))))
+    # Obtains angle from dot product
+    vector_ba = np.subtract(a, b)
+    vector_bc = np.subtract(c, b)
+    norm_ba = LA.norm(vector_ba)
+    norm_bc = LA.norm(vector_bc)
+    dot_product = np.dot(vector_ba, vector_bc)
 
-    # More accurate for angles closer to 0 or 180
-    #radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
+    angle_radians = np.arccos(dot_product / (norm_ba * norm_bc))
 
-    # rounded to nearest integer
-    angle = np.round(np.abs(radians * 180.0/np.pi)) 
+    # rounded to nearest integer 360 degree
+    angle = np.round(np.abs(angle_radians * 180.0 / np.pi)) 
 
     return angle
+
+
+def extract_angles_from_landmarks(results):
+    landmarks = results.pose_landmarks.landmark
+
+    def extract_landmark_coordinates(lmk):
+        return [landmarks[lmk.value].x, landmarks[lmk.value].y]
+    
+    landmark_types = {
+        'l_shoulder': mp_pose.PoseLandmark.LEFT_SHOULDER, 
+        'l_hip': mp_pose.PoseLandmark.LEFT_HIP, 
+        'l_knee': mp_pose.PoseLandmark.LEFT_KNEE,
+
+    }
+
+    lmk_coord = {}
+    for lmk_type in landmark_types:
+        lmk_coord[lmk_type] = extract_landmark_coordinates(landmark_types[lmk_type])
+        
+    angle_types = {
+        'l_hip': calc_angle(lmk_coord['l_shoulder'], lmk_coord['l_hip'], lmk_coord['l_knee']),
+    }
+
+    return angle_types
+
 
 options = ['WebCam', 'mp4 video']
 
@@ -66,13 +94,15 @@ else:
 
 
 
-#
+# Initialization of a dictionary of dictionaries with the values of the angles over the video
+values_by_key = {}
+frame_counter = 0
 
 # Setup mediapipe instance
 with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7, smooth_landmarks=True) as pose:
     while cap.isOpened():
         ret, frame = cap.read()
-
+       
         # channels order change
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image.flags.writeable = False
@@ -84,53 +114,18 @@ with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7, smo
         image.flags.writeable = True
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        # landmarks extraction
+        # landmarks and angles extraction
         try:
-            landmarks = results.pose_landmarks.landmark
-          
-            # Coordinates of landmarks
-            l_shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
-            l_hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
-            l_knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
-            l_elbow = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x,landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
-            l_wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x,landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
-            l_ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
-            l_foot = [landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value].x,landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value].y]
+            angle_types = extract_angles_from_landmarks(results)
+            
+            for key, value in angle_types.items():
+                if key not in values_by_key:
+                    values_by_key[key] = {}
+                values_by_key[key][frame_counter] = value
 
-            r_shoulder = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
-            r_hip = [landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y]
-            r_knee = [landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
-            r_elbow = [landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y]
-            r_wrist = [landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y]
-            r_ankle = [landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y]
-            r_foot = [landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value].x,landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value].y]
+            frame_counter += 1  
+    # plot values for each key in order of appearance
 
-
-# HIP
-            l_hip_angle = calculate_angle(l_shoulder, l_hip, l_knee)
-            r_hip_angle = calculate_angle(r_shoulder, r_hip, r_knee)
-# KNEE
-            l_knee_angle = calculate_angle(l_ankle, l_knee, l_hip)
-            r_knee_angle = calculate_angle(r_ankle, r_knee, r_hip)
-# ELBOW
-            l_elbow_angle = calculate_angle(l_shoulder, l_elbow, l_wrist)
-            r_elbow_angle = calculate_angle(r_shoulder, r_elbow, r_wrist)
-# SHOULDER
-            l_shoulder_angle = calculate_angle(l_hip, l_shoulder, l_elbow)
-            r_shoulder_angle = calculate_angle(r_hip, r_shoulder, r_elbow)
-# ANKLE DORSIFLEXION
-            l_ankle = calculate_angle(l_knee, l_ankle, l_foot)
-            r_ankle = calculate_angle(r_knee, r_ankle, r_foot)
-
-
-
-            # Visualize angle
-            cv2.putText(image, str(l_hip_angle), 
-                           tuple(np.multiply(l_hip, [640, 480]).astype(int)), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
-            cv2.putText(image, str(r_hip_angle), 
-                           tuple(np.multiply(r_hip, [640, 480]).astype(int)), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
 
         except:
             pass
@@ -141,6 +136,8 @@ with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7, smo
                                   mp_drawing.DrawingSpec(color=(245, 66, 230), thickness=2, circle_radius=2)
                                   )
 
+
+
         cv2.imshow('MP Feed', image)
 
         if cv2.waitKey(10) & 0xFF == ord('q'):
@@ -148,6 +145,11 @@ with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7, smo
             
     cap.release()
     cv2.destroyAllWindows()
-    
+
+    # Plot values for each key in order of appearance
+    for key in values_by_key:
+        values = [values_by_key[key][i] for i in range(frame_counter)]
+        plt.scatter(frame_counter, values)
+    plt.show()
 
 
