@@ -55,7 +55,7 @@ elif int(user_input) == 2:
     # Set the path to your mp4 video
     with open('config.json') as f:
         config = json.load(f)
-    video_path = os.path.join(config['data_path'], "001.mp4")
+    video_path = os.path.join(config['data_path'], "bad_snatch_1.mp4")
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
     # Check if the video was opened successfully
