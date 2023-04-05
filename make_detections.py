@@ -85,6 +85,7 @@ with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7, smo
     while cap.isOpened():
         ret, frame = cap.read()
         
+        # If video ends or fails, GTFO
         if not ret:
             break
         if frame is None:
