@@ -5,11 +5,12 @@ angles_over_time = {}
 
 for i in range(10):
     angle_types = {
-        'l_hip': 5*i,
-        'r_hip': 6*i,
-        'l_elbow': 6*i,
-        'r_elbow': 3/(i+0.1),
+        'l_hip': np.ones((10,)) * 5*i,
+        'r_hip': np.ones((13,)) * 6*i,
+        'l_elbow': np.ones((7,)) * 6*i,
+        'r_elbow': np.ones((5,)) * 3/(i+0.1),
     }
+
     for key, value in angle_types.items():
         if key not in angles_over_time:
             angles_over_time[key] = np.array([value])
