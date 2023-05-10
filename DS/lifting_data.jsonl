@@ -1,0 +1,5 @@
+{video_name:'', athlete_name: ' ', athlete_weight: ' ', lift_name: ' ', lift_weight: ' ', date:' '}
+{'video_name':'003', 'athlete_name': 'Sonny Webster', 'athlete_weigh't: 94, 'lift_name': 'snatch', 'lift_weight': 145, 'date': 2023, 'video_effect': 'slow', 'camera_position': ''}
+{'video_name':'002', 'athlete_name': 'Kuo Hsing-Chun', 'athlete_weight': 59, 'lift_name': 'snatch', 'lift_weight': 90, 'date': 2023, 'video_effect': 'slow', 'camera_position': ''}
+{'video_name':'001', 'athlete_name': 'Oleksiy Torokhtiy', 'athlete_weight': 104, 'lift_name': 'snatch', 'lift_weight': 90, 'date': 2016, 'video_effect': 'slow', 'camera_position': [pi/3, pi/4]}
+{'video_name':'000', 'athlete_name': 'Oleksiy Torokhtiy', 'athlete_weight': 104, 'lift_name': 'snatch', 'lift_weight': 90, 'date': 2016, 'video_effect': '', 'camera_position': [pi/3, pi/4]} 

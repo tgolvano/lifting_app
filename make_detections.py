@@ -112,83 +112,87 @@ def scatter_joint_angles(angles_over_time: dict, title: str) -> None:
 import torch
 print(torch.__version__)
 start_t = time.time()
-i = 0
-
-for det_conf in [0.7]:
-    for track_conf in [0.9]:
-        # VIDEO MP4 format
-
-        # Set the path to your mp4 video
-        with open('config.json') as f:
-            config = json.load(f)
-        video_path = os.path.join(config['data_path'], "003.mp4")
-        cap = cv2.VideoCapture(video_path)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        # Check if the video was opened successfully
-        if not cap.isOpened():
-            print("Error opening video file")
 
 
-        # Initialization of a dictionary to contain the values of the angles over the video
-        angles_over_time = {}
+# VIDEO MP4 format
 
-        # Setup mediapipe instance
-        with mp_pose.Pose(min_detection_confidence=det_conf, min_tracking_confidence=track_conf, model_complexity = 2) as pose:
-            while cap.isOpened():
-                ret, frame = cap.read()
+# Set the path to your mp4 video
+with open('config.json') as f:
+    config = json.load(f)
+for file_name in os.listdir(config['data_path']):
+    # check if the file is a .mp4 video and its name doesn't start with 'bad_form_snatches'
+    if file_name.endswith('.mp4') and not file_name.startswith('bad_form_snatches'):
+        # create the full path to the video
+        video_path = os.path.join(config['data_path'], file_name)
+
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    # Check if the video was opened successfully
+    if not cap.isOpened():
+        print("Error opening video file")
+
+
+    # Initialization of a dictionary to contain the values of the angles over the video
+    angles_over_time = {}
+    # Constants for the pose detection
+    det_conf = 0.7
+    track_conf = 0.7
+
+    # Setup mediapipe instance
+    with mp_pose.Pose(min_detection_confidence=det_conf, min_tracking_confidence=track_conf, model_complexity = 2) as pose:
+        while cap.isOpened():
+            ret, frame = cap.read()
+            
+            # If video ends or fails, GTFO
+            if not ret:
+                break
+            if frame is None:
+                continue
+
+
+            # channels order change
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image.flags.writeable = False
+
+            # detection
+            results = pose.process(image)
+
+            # channels to BGR sorting
+            image.flags.writeable = True
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+            # landmarks and angles extraction
+            try:
+                angle_types = extract_angles_from_landmarks(results)
                 
-                # If video ends or fails, GTFO
-                if not ret:
-                    break
-                if frame is None:
-                    continue
+                for key, value in angle_types.items():
+                    if key not in angles_over_time:
+                        angles_over_time[key] = np.array([value])
+                    else:
+                        angles_over_time[key] = np.append(angles_over_time[key], value)
+            except:
+                pass
 
+            # render detections
+            mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                                    mp_drawing.DrawingSpec(color=(245, 117, 66), thickness=2, circle_radius=2),
+                                    mp_drawing.DrawingSpec(color=(245, 66, 230), thickness=2, circle_radius=2)
+                                    )
 
-                # channels order change
-                image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                image.flags.writeable = False
+            
 
-                # detection
-                results = pose.process(image)
+            #cv2.imshow('MP Feed', image)
 
-                # channels to BGR sorting
-                image.flags.writeable = True
-                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-                # landmarks and angles extraction
-                try:
-                    angle_types = extract_angles_from_landmarks(results)
-                    
-                    for key, value in angle_types.items():
-                        if key not in angles_over_time:
-                            angles_over_time[key] = np.array([value])
-                        else:
-                            angles_over_time[key] = np.append(angles_over_time[key], value)
-                except:
-                    i += 1
-                    print(f"Not landmarks retrieval in {i} frames")
-                    pass
-
-                # render detections
-                mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
-                                        mp_drawing.DrawingSpec(color=(245, 117, 66), thickness=2, circle_radius=2),
-                                        mp_drawing.DrawingSpec(color=(245, 66, 230), thickness=2, circle_radius=2)
-                                        )
-
+        # if cv2.waitKey(10) & 0xFF == ord('q'):
+        #     break
                 
+        cap.release()
+        cv2.destroyAllWindows()
 
-                #cv2.imshow('MP Feed', image)
+        # Plot values for each key in order of appearance
+        scatter_joint_angles(angles_over_time, f"{file_name[:-4]}_snatch__dc{det_conf}__tc{track_conf}")
 
-            # if cv2.waitKey(10) & 0xFF == ord('q'):
-            #     break
-                    
-            cap.release()
-            cv2.destroyAllWindows()
+    end_t = time.time()
+    elapsed_t = end_t - start_t
 
-            # Plot values for each key in order of appearance
-            scatter_joint_angles(angles_over_time, f"Webster_snatch__dc{det_conf}__tc{track_conf}")
-
-end_t = time.time()
-elapsed_t = end_t - start_t
-
-print(f"Elapsed time: {elapsed_t}")
+    print(f"Elapsed time: {elapsed_t}")
