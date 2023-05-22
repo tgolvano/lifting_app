@@ -109,8 +109,6 @@ def scatter_joint_angles(angles_over_time: dict, title: str) -> None:
 
 
 
-import torch
-print(torch.__version__)
 start_t = time.time()
 
 
@@ -120,11 +118,12 @@ start_t = time.time()
 with open('config.json') as f:
     config = json.load(f)
 for file_name in os.listdir(config['data_path']):
-    # check if the file is a .mp4 video and its name doesn't start with 'bad_form_snatches'
-    if file_name.endswith('.mp4') and not file_name.startswith('bad_form_snatches'):
-        # create the full path to the video
-        video_path = os.path.join(config['data_path'], file_name)
 
+    # check if the file is a .mp4 video and its name doesn't start with 'bad_form_snatches'
+    if not file_name.endswith('.mp4') or file_name.startswith('bad_form_snatches'):
+        # create the full path to the video
+        continue
+    video_path = os.path.join(config['data_path'], file_name)
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
     # Check if the video was opened successfully
@@ -135,8 +134,8 @@ for file_name in os.listdir(config['data_path']):
     # Initialization of a dictionary to contain the values of the angles over the video
     angles_over_time = {}
     # Constants for the pose detection
-    det_conf = 0.7
-    track_conf = 0.7
+    det_conf = 0.6
+    track_conf = 0.6
 
     # Setup mediapipe instance
     with mp_pose.Pose(min_detection_confidence=det_conf, min_tracking_confidence=track_conf, model_complexity = 2) as pose:
@@ -170,7 +169,7 @@ for file_name in os.listdir(config['data_path']):
                         angles_over_time[key] = np.array([value])
                     else:
                         angles_over_time[key] = np.append(angles_over_time[key], value)
-            except:
+            except:  # noqa: E722
                 pass
 
             # render detections
@@ -190,7 +189,7 @@ for file_name in os.listdir(config['data_path']):
         cv2.destroyAllWindows()
 
         # Plot values for each key in order of appearance
-        scatter_joint_angles(angles_over_time, f"{file_name[:-4]}_snatch__dc{det_conf}__tc{track_conf}")
+        scatter_joint_angles(angles_over_time, f"{file_name[:-4]}_snatch")
 
     end_t = time.time()
     elapsed_t = end_t - start_t

@@ -9,3 +9,7 @@
 
 *.png
 !spec/*.png
+
+
+!/scripts/
+!/angles_plot_mp_results/*.png
